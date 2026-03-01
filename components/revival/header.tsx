@@ -43,15 +43,7 @@ export function Header() {
             </span>
           </div>
           <div className="hidden items-center gap-4 md:flex">
-            <Link href="/retailer" className="transition-colors hover:text-revival-orange">
-              Sell on Revival
-            </Link>
-            <Link href="/manager" className="transition-colors hover:text-revival-orange">
-              Manager Portal
-            </Link>
-            <Link href="/admin" className="transition-colors hover:text-revival-orange">
-              Admin
-            </Link>
+            Reviving Inventory. Rebuilding Retail.
           </div>
         </div>
       </div>
@@ -121,21 +113,6 @@ export function Header() {
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link href="/retailer" className="flex items-center gap-2">
-                    <Store className="h-4 w-4" /> Retailer Panel
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/manager" className="flex items-center gap-2">
-                    <Users className="h-4 w-4" /> Manager Panel
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/admin" className="flex items-center gap-2">
-                    <Shield className="h-4 w-4" /> Admin Panel
-                  </Link>
-                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
 
@@ -172,6 +149,7 @@ export function Header() {
         <div className="hidden border-t border-border md:block">
           <div className="mx-auto flex max-w-7xl items-center gap-6 px-4 py-2 text-sm">
             {[
+              "Category",
               "Electronics",
               "Fashion",
               "Home & Kitchen",
