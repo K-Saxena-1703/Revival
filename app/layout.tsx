@@ -14,6 +14,9 @@ export const metadata: Metadata = {
     icon: '/images/revival-logo.png',
     apple: '/images/revival-logo.png',
   },
+  verification: {
+    google: "DhYzqbeE1amhDy7oZGm7igbW3ZrA-JCg-gun_0ytRe8",
+  },
 }
 
 export const viewport: Viewport = {
