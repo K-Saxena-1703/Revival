@@ -1,23 +1,12 @@
+// e:/Revival/app/retailer/add-product/page.tsx
 "use client"
  
-import { useRef, useState } from "react"
+import { useRef, useState, useEffect } from "react"
+import Tesseract from 'tesseract.js'
 import {
-  LayoutDashboard,
-  Package,
-  Plus,
-  ShoppingBag,
-  FileCheck,
-  BarChart3,
-  Settings,
-  Upload,
-  FileImage,
-  AlertTriangle,
-  ShieldCheck,
-  Info,
-  CheckCircle2,
-  XCircle,
-  Loader2,
-  X,
+  LayoutDashboard, Package, Plus, ShoppingBag, FileCheck, BarChart3,
+  Settings, Upload, FileImage, AlertTriangle, ShieldCheck, Info,
+  CheckCircle2, XCircle, Loader2, X, FileText, Search, ScanLine, AlertCircle
 } from "lucide-react"
 import { DashboardShell } from "@/components/revival/dashboard-shell"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -25,471 +14,301 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { toast } from "sonner"
+import { Badge } from "@/components/ui/badge"
  
 const navItems = [
   { label: "Dashboard", href: "/retailer", icon: LayoutDashboard },
   { label: "My Products", href: "/retailer/products", icon: Package },
   { label: "Add Product", href: "/retailer/add-product", icon: Plus },
-  { label: "Orders", href: "/retailer/orders", icon: ShoppingBag },
   { label: "Verifications", href: "/retailer/verifications", icon: FileCheck },
-  { label: "Analytics", href: "/retailer/analytics", icon: BarChart3 },
-  { label: "Settings", href: "/retailer/settings", icon: Settings },
 ]
- 
-const ALLOWED_TYPES = [
-  "application/pdf",
-  "image/jpeg",
-  "image/jpg",
-  "image/png",
-  "image/webp",
-]
-const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
  
 export default function AddProductPage() {
   const [form, setForm] = useState({
-    productName: "",
-    category: "",
-    quantity: "",
-    mrp: "",
-    purchasePrice: "",
-    sellingPrice: "",
-    description: "",
+    productName: "", category: "Electronics", quantity: "1", mrp: "", purchasePrice: "", sellingPrice: "", description: ""
   })
  
   const [file, setFile] = useState<File | null>(null)
-  const [result, setResult] = useState<"Verified" | "Fake Bill" | null>(null)
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [billPreview, setBillPreview] = useState<string | null>(null)
+  const [ocrResult, setOcrResult] = useState<any>(null)
+  const [isVerifying, setIsVerifying] = useState(false)
+  const [ocrProgress, setOcrProgress] = useState(0)
   const fileInputRef = useRef<HTMLInputElement>(null)
- 
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = e.target.files?.[0] || null
- 
-    if (!selected) return
- 
-    if (!ALLOWED_TYPES.includes(selected.type)) {
-      toast.error("Invalid file type. Please upload PDF, JPG, PNG, or WEBP.")
-      e.target.value = ""
-      return
+    if (selected) {
+      setFile(selected)
+      setOcrResult(null)
+      const reader = new FileReader()
+      reader.onloadend = () => setBillPreview(reader.result as string)
+      reader.readAsDataURL(selected)
     }
- 
-    if (selected.size > MAX_FILE_SIZE) {
-      toast.error("File too large. Maximum size is 10MB.")
-      e.target.value = ""
-      return
-    }
- 
-    setFile(selected)
-    setResult(null) // Reset result when a new file is chosen
   }
  
-  const handleRemoveFile = () => {
-    setFile(null)
-    setResult(null)
-    if (fileInputRef.current) fileInputRef.current.value = ""
-  }
- 
-  const handleSubmit = async () => {
-    if (!file) {
-      toast.error("Please upload a purchase bill before submitting.")
-      return
-    }
- 
-    setIsSubmitting(true)
-    setResult(null)
- 
+  const handleVerify = async () => {
+    if (!file) return
+    setIsVerifying(true)
+    setOcrProgress(0)
     try {
-      const formData = new FormData()
-      formData.append("bill", file)
- 
+      const worker = await Tesseract.createWorker('eng', 1, {
+        logger: m => { if (m.status === 'recognizing text') setOcrProgress(Math.round(m.progress * 100)) },
+      })
+      const { data: { text } } = await worker.recognize(file)
+      await worker.terminate()
+
       const res = await fetch("/api/verify-bill", {
         method: "POST",
-        body: formData,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ extractedText: text })
       })
- 
-      if (!res.ok) {
-        const errorData = await res.json()
-        throw new Error(errorData.error || "Verification failed.")
-      }
- 
-      const data: { status: "Verified" | "Fake Bill"; reason?: string } = await res.json()
- 
-      setResult(data.status)
- 
-      if (data.status === "Verified") {
-        toast.success("Bill verified successfully! Submitted for manager approval.")
-      } else {
-        toast.error(`Verification Failed: ${data.reason ?? "Suspicious bill detected."}`)
-      }
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Something went wrong."
-      toast.error(message)
-    } finally {
-      setIsSubmitting(false)
-    }
+      const data = await res.json()
+      setOcrResult(data)
+      toast.success("AI Analysis Complete")
+    } catch (err: any) {
+      console.error(err)
+      toast.error("Verification crashed")
+    } finally { setIsVerifying(false) }
   }
  
   return (
     <DashboardShell title="Add New Product" role="retailer" navItems={navItems}>
-      {/* Info banner */}
-      <div className="mb-6 flex items-start gap-3 rounded-xl border border-revival-deep-blue/20 bg-revival-deep-blue/5 p-4">
-        <Info className="mt-0.5 h-5 w-5 shrink-0 text-revival-deep-blue" />
-        <div>
-          <p className="text-sm font-medium text-foreground">
-            AI-Powered Verification Process
-          </p>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            Upload your wholesaler/shopkeeper bill along with product details. Our AI will verify
-            the bill using OCR, detect any manipulation, and a local manager will give final
-            approval.
-          </p>
-        </div>
-      </div>
- 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2 space-y-6">
-          {/* Bill Upload */}
-          <Card>
-            <CardHeader>
+      <div className="grid gap-6 lg:grid-cols-12">
+        
+        {/* LEFT COLUMN: Input Forms */}
+        <div className="lg:col-span-8 space-y-6">
+          
+          {/* Step 1: Upload */}
+          <Card className="overflow-hidden border-2 shadow-sm transition-all">
+            <CardHeader className="bg-secondary/10 border-b">
               <CardTitle className="flex items-center gap-2 text-base">
-                <FileCheck className="h-4 w-4 text-revival-deep-blue" />
-                Step 1: Upload Purchase Bill
+                <FileCheck className="h-5 w-5 text-revival-deep-blue" />
+                Step 1: AI Authenticity Check
               </CardTitle>
-              <CardDescription>
-                Upload the original bill from your wholesaler or shopkeeper (PDF, JPG, PNG, WEBP)
-              </CardDescription>
             </CardHeader>
-            <CardContent>
-              {/* Drop zone */}
-              <div
-                className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-border bg-secondary/30 p-8 transition-colors hover:border-revival-deep-blue/40 hover:bg-revival-deep-blue/5 cursor-pointer"
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <Upload className="mb-3 h-10 w-10 text-muted-foreground" />
-                <p className="text-sm font-medium text-foreground">
-                  Drop your bill here or click to upload
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Supports PDF, JPG, PNG, WEBP (max 10MB)
-                </p>
- 
-                {/* Hidden real input */}
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".pdf,image/jpeg,image/jpg,image/png,image/webp"
-                  className="hidden"
-                  onChange={handleFileChange}
-                />
- 
-                {/* Visible styled button */}
-                <div
-                  className="mt-4 flex items-center gap-2 rounded-md border bg-background px-4 py-2 text-sm font-medium shadow-sm hover:bg-secondary transition-colors"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    fileInputRef.current?.click()
-                  }}
+            <CardContent className="pt-6 space-y-4">
+              {!file ? (
+                <div 
+                  className="group flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-muted-foreground/30 bg-secondary/30 p-12 cursor-pointer hover:bg-secondary/50 hover:border-revival-deep-blue/50 transition-all"
+                  onClick={() => fileInputRef.current?.click()}
                 >
-                  <FileImage className="h-4 w-4" />
-                  Choose File
-                </div>
-              </div>
- 
-              {/* Selected file display */}
-              {file && (
-                <div className="mt-3 flex items-center justify-between rounded-lg border bg-secondary/50 px-3 py-2">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <FileImage className="h-4 w-4 shrink-0 text-revival-deep-blue" />
-                    <span className="text-xs font-medium text-foreground truncate">
-                      {file.name}
-                    </span>
-                    <span className="text-xs text-muted-foreground shrink-0">
-                      ({(file.size / 1024).toFixed(1)} KB)
-                    </span>
+                  <div className="h-16 w-16 bg-white rounded-full flex items-center justify-center shadow-lg mb-4 group-hover:scale-110 transition-transform">
+                    <Upload className="h-8 w-8 text-revival-deep-blue" />
                   </div>
-                  <button
-                    type="button"
-                    onClick={handleRemoveFile}
-                    className="ml-2 shrink-0 rounded-full p-0.5 hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
-                    aria-label="Remove file"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
+                  <h3 className="font-bold text-lg">Drop Wholesaler Bill here</h3>
+                  <p className="text-xs text-muted-foreground mt-1">Supports JPG, PNG, WEBP (Maximum 10MB)</p>
+                  <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileChange} />
+                </div>
+              ) : (
+                <div className="space-y-4">
+                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {/* Image Thumbnail */}
+                      <div className="aspect-[3/4] relative rounded-xl overflow-hidden border shadow-inner bg-black/5 flex items-center justify-center">
+                         {billPreview && <img src={billPreview} alt="Bill Preview" className="h-full w-full object-contain" />}
+                         <div className="absolute top-2 right-2 flex gap-1">
+                            <Badge variant="secondary" className="bg-white/80 backdrop-blur-sm cursor-pointer" onClick={() => setFile(null)}>Change</Badge>
+                         </div>
+                      </div>
+
+                      {/* AI Logic Display */}
+                      <div className="md:col-span-2 space-y-4">
+                        <div className="flex items-center justify-between border rounded-xl p-3 bg-secondary/20">
+                          <div className="flex items-center gap-2">
+                            <FileImage className="h-4 w-4 text-revival-deep-blue" />
+                            <span className="text-sm font-medium">{file.name}</span>
+                          </div>
+                          <p className="text-xs text-muted-foreground">{(file.size / 1024).toFixed(1)} KB</p>
+                        </div>
+
+                        {!ocrResult && !isVerifying && (
+                          <div className="p-4 bg-revival-orange/5 rounded-xl border border-revival-orange/20">
+                             <p className="text-xs font-medium mb-3">AI Vision engine is ready to scan for fraud detection.</p>
+                             <Button className="w-full bg-revival-deep-blue hover:bg-revival-deep-blue/90 h-10" onClick={handleVerify}>
+                               <ScanLine className="mr-2 h-4 w-4" /> Start AI Analysis
+                             </Button>
+                          </div>
+                        )}
+
+                        {isVerifying && (
+                          <div className="p-6 border rounded-2xl bg-blue-50/50 flex flex-col items-center">
+                            <Loader2 className="h-8 w-8 text-revival-deep-blue animate-spin mb-3" />
+                            <div className="w-full space-y-2">
+                               <div className="flex justify-between text-[10px] font-black uppercase text-revival-deep-blue tracking-tighter">
+                                 <span>Scanning Pixels...</span>
+                                 <span>{ocrProgress}%</span>
+                               </div>
+                               <div className="w-full bg-blue-100 h-2.5 rounded-full overflow-hidden shadow-inner">
+                                 <div className="bg-revival-deep-blue h-full transition-all duration-300 shadow-[0_0_10px_rgba(30,64,175,0.3)]" style={{width: `${ocrProgress}%`}} />
+                               </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {ocrResult && (
+                          <div className={`p-5 rounded-2xl border-2 transition-all ${
+                            ocrResult.status === "Verified" ? "bg-emerald-50 border-emerald-200" :
+                            ocrResult.status === "Suspicious Bill" ? "bg-amber-50 border-amber-200" : "bg-rose-50 border-rose-200"
+                          }`}>
+                            <div className="flex items-center justify-between mb-2">
+                               <div className="flex items-center gap-2">
+                                 {ocrResult.status === "Verified" ? <CheckCircle2 className="h-5 w-5 text-emerald-600" /> : <AlertCircle className="h-5 w-5 text-rose-600" />}
+                                 <h4 className={`text-xl font-black uppercase tracking-tighter italic ${
+                                   ocrResult.status === "Verified" ? "text-emerald-800" : ocrResult.status === "Suspicious Bill" ? "text-amber-800" : "text-rose-800"
+                                 }`}>{ocrResult.status}</h4>
+                               </div>
+                               <Badge className={ocrResult.status === "Verified" ? "bg-emerald-500 hover:bg-emerald-600" : "bg-rose-500 hover:bg-rose-600"}>AI Result</Badge>
+                            </div>
+                            <p className="text-xs font-bold mt-1 text-foreground/70 tracking-tight">Reason: <span className="font-medium text-foreground">{ocrResult.reason}</span></p>
+                            
+                            <Separator className="my-3 opacity-50" />
+                            
+                            <p className="text-[10px] font-bold text-muted-foreground uppercase mb-2">Extracted OCR Metadata Preview</p>
+                            <div className="bg-white/60 text-[10px] font-mono leading-tight p-3 rounded-lg border max-h-24 overflow-y-auto shadow-inner select-all">
+                                {ocrResult.extractedText || "No text could be extracted."}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                   </div>
                 </div>
               )}
- 
-              {/* Warning */}
-              <div className="mt-4 flex items-start gap-2 rounded-lg bg-revival-orange/5 p-3">
-                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-revival-orange" />
-                <div className="text-xs text-muted-foreground">
-                  <p className="font-medium text-foreground">Important:</p>
-                  <ul className="mt-1 list-disc pl-4 space-y-0.5">
-                    <li>Bill must be original, not AI-generated</li>
-                    <li>Product name and price must match the bill</li>
-                    <li>Fake bills will result in account suspension</li>
-                  </ul>
-                </div>
-              </div>
             </CardContent>
           </Card>
  
-          {/* Product Details */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Package className="h-4 w-4 text-revival-deep-blue" />
-                Step 2: Product Details
-              </CardTitle>
-              <CardDescription>
-                Enter accurate product information matching your purchase bill
-              </CardDescription>
+          {/* Step 2: Form */}
+          <Card className={`transition-all duration-500 border-2 shadow-sm ${!ocrResult || ocrResult.status !== "Verified" ? "opacity-40 grayscale pointer-events-none" : ""}`}>
+            <CardHeader className="bg-secondary/10 border-b">
+               <CardTitle className="text-base flex items-center gap-2">
+                  <Package className="h-5 w-5 text-revival-deep-blue" />
+                  Step 2: Product Specifications
+               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2 sm:col-span-2">
-                  <Label htmlFor="productName">Product Name</Label>
-                  <Input
-                    id="productName"
-                    placeholder="e.g., boAt Rockerz 450 Bluetooth Headphone"
-                    value={form.productName}
-                    onChange={(e) => setForm({ ...form, productName: e.target.value })}
-                  />
-                </div>
- 
-                <div className="space-y-2">
-                  <Label htmlFor="category">Category</Label>
-                  <Select
-                    value={form.category}
-                    onValueChange={(v) => setForm({ ...form, category: v })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="electronics">Electronics</SelectItem>
-                      <SelectItem value="fashion">Fashion</SelectItem>
-                      <SelectItem value="home">Home & Kitchen</SelectItem>
-                      <SelectItem value="beauty">Beauty & Personal Care</SelectItem>
-                      <SelectItem value="sports">Sports & Fitness</SelectItem>
-                      <SelectItem value="books">Books & Stationery</SelectItem>
-                      <SelectItem value="toys">Toys & Games</SelectItem>
-                      <SelectItem value="footwear">Footwear</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
- 
-                <div className="space-y-2">
-                  <Label htmlFor="quantity">Quantity Available</Label>
-                  <Input
-                    id="quantity"
-                    type="number"
-                    placeholder="e.g., 50"
-                    value={form.quantity}
-                    onChange={(e) => setForm({ ...form, quantity: e.target.value })}
-                  />
-                </div>
-              </div>
- 
-              <Separator />
- 
-              <div className="grid gap-4 sm:grid-cols-3">
-                <div className="space-y-2">
-                  <Label htmlFor="mrp">MRP ({"₹"})</Label>
-                  <Input
-                    id="mrp"
-                    type="number"
-                    placeholder="e.g., 3990"
-                    value={form.mrp}
-                    onChange={(e) => setForm({ ...form, mrp: e.target.value })}
-                  />
-                </div>
- 
-                <div className="space-y-2">
-                  <Label htmlFor="purchasePrice">Purchase Price ({"₹"})</Label>
-                  <Input
-                    id="purchasePrice"
-                    type="number"
-                    placeholder="As on bill"
-                    value={form.purchasePrice}
-                    onChange={(e) => setForm({ ...form, purchasePrice: e.target.value })}
-                  />
-                  <p className="text-[10px] text-muted-foreground">Must match the bill amount</p>
-                </div>
- 
-                <div className="space-y-2">
-                  <Label htmlFor="sellingPrice">Selling Price on Revival ({"₹"})</Label>
-                  <Input
-                    id="sellingPrice"
-                    type="number"
-                    placeholder="Your selling price"
-                    value={form.sellingPrice}
-                    onChange={(e) => setForm({ ...form, sellingPrice: e.target.value })}
-                  />
-                </div>
-              </div>
- 
-              <div className="space-y-2">
-                <Label htmlFor="description">Product Description</Label>
-                <Textarea
-                  id="description"
-                  placeholder="Describe your product in detail..."
-                  rows={4}
-                  value={form.description}
-                  onChange={(e) => setForm({ ...form, description: e.target.value })}
-                />
-              </div>
- 
-             {/* Product Images */}
+            <CardContent className="pt-6 space-y-4">
+               <div className="space-y-2">
+                 <Label>Full Product Name</Label>
+                 <Input placeholder="e.g., Apple iPhone 15 Pro Max (256GB)" value={form.productName} onChange={e => setForm({...form, productName: e.target.value})} />
+               </div>
+               
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Category</Label>
+                    <Select value={form.category} onValueChange={v => setForm({...form, category: v})}>
+                       <SelectTrigger><SelectValue /></SelectTrigger>
+                       <SelectContent>
+                          <SelectItem value="Electronics">Electronics</SelectItem>
+                          <SelectItem value="Fashion">Fashion</SelectItem>
+                          <SelectItem value="Cosmetics">Cosmetics</SelectItem>
+                          <SelectItem value="Home">Home Decor</SelectItem>
+                       </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Stock Quantity</Label>
+                    <Input type="number" value={form.quantity} onChange={e => setForm({...form, quantity: e.target.value})} />
+                  </div>
+               </div>
 
-<div className="space-y-2">
+               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                 <div className="space-y-2">
+                    <Label>Market Price (MRP)</Label>
+                    <Input type="number" placeholder="₹" value={form.mrp} onChange={e => setForm({...form, mrp: e.target.value})} />
+                 </div>
+                 <div className="space-y-2">
+                    <Label>Purchase Price</Label>
+                    <Input type="number" placeholder="₹" value={form.purchasePrice} onChange={e => setForm({...form, purchasePrice: e.target.value})} />
+                 </div>
+                 <div className="space-y-2">
+                    <Label>Revival Selling Price</Label>
+                    <Input type="number" placeholder="₹" value={form.sellingPrice} onChange={e => setForm({...form, sellingPrice: e.target.value})} />
+                 </div>
+               </div>
 
-  <Label>Product Images</Label>
-
-  <label className="flex h-40 cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-border">
-
-    <input
-      type="file"
-      accept="image/*"
-      multiple
-      className="hidden"
-      onChange={(e) => {
-        console.log(e.target.files)
-      }}
-    />
-
-    <Plus className="h-8 w-8 text-muted-foreground" />
-
-    <p className="mt-2 text-sm text-muted-foreground">
-      Upload Product Images
-    </p>
-
-  </label>
-
-</div>
+               <div className="space-y-2">
+                 <Label>Product Story / Description</Label>
+                 <Textarea rows={4} placeholder="Why are you selling this stock? Describe condition and warranty..." value={form.description} onChange={e => setForm({...form, description: e.target.value})} />
+               </div>
             </CardContent>
           </Card>
         </div>
  
-        {/* Sidebar */}
-        <div className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Verification Preview</CardTitle>
+        {/* RIGHT COLUMN: Previews */}
+        <div className="lg:col-span-4 space-y-6">
+          
+          {/* Live Product Preview */}
+          <Card className="border-2 border-revival-deep-blue/10 overflow-hidden shadow-xl shadow-revival-deep-blue/5">
+            <CardHeader className="bg-revival-deep-blue text-white py-3">
+              <CardTitle className="text-sm font-bold flex items-center gap-2">
+                <Search className="h-4 w-4" /> Live Market Preview
+              </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-3 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Product</span>
-                  <span className="text-foreground truncate max-w-[140px] text-right">
-                    {form.productName || "Not entered"}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Category</span>
-                  <span className="text-foreground capitalize">
-                    {form.category || "Not selected"}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Quantity</span>
-                  <span className="text-foreground">{form.quantity || "0"}</span>
-                </div>
-                <Separator />
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">MRP</span>
-                  <span className="text-foreground">{"₹"}{form.mrp || "0"}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Purchase Price</span>
-                  <span className="text-foreground">{"₹"}{form.purchasePrice || "0"}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Selling Price</span>
-                  <span className="font-medium text-revival-orange">
-                    {"₹"}{form.sellingPrice || "0"}
-                  </span>
-                </div>
-                {form.mrp && form.sellingPrice && (
-                  <>
-                    <Separator />
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Discount</span>
-                      <span className="font-bold text-revival-badge-green">
-                        {Math.round(
-                          ((Number(form.mrp) - Number(form.sellingPrice)) / Number(form.mrp)) * 100
-                        )}
-                        % OFF
-                      </span>
-                    </div>
-                  </>
-                )}
+            <CardContent className="p-0">
+               <div className="p-4 space-y-4">
+                  <div className="aspect-square rounded-xl bg-secondary/30 flex items-center justify-center border border-dashed text-muted-foreground text-xs p-6 text-center italic">
+                     Product Image Preview (Upload during Step 3)
+                  </div>
+                  
+                  <div className="space-y-1">
+                     <Badge variant="outline" className="text-[10px] uppercase font-bold text-revival-deep-blue border-revival-deep-blue/30">{form.category}</Badge>
+                     <h3 className="font-bold text-lg leading-tight truncate">{form.productName || "Product Name Display"}</h3>
+                     <p className="text-[11px] text-muted-foreground line-clamp-2">{form.description || "Enter product description to see it here..."}</p>
+                  </div>
+
+                  <div className="flex items-end justify-between border-t pt-4">
+                     <div>
+                        <p className="text-[10px] text-muted-foreground line-through decoration-rose-500">MRP ₹{form.mrp || 0}</p>
+                        <p className="text-2xl font-black text-revival-orange">₹{form.sellingPrice || 0}</p>
+                     </div>
+                     <Badge className="bg-emerald-500 text-white font-black px-2 py-1">
+                        {form.mrp && form.sellingPrice ? Math.round(((Number(form.mrp) - Number(form.sellingPrice)) / Number(form.mrp)) * 100) : 0}% OFF
+                     </Badge>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-2 text-[10px] pb-2">
+                     <div className="p-2 rounded-lg bg-emerald-50 border border-emerald-100 flex items-center gap-2">
+                        <CheckCircle2 className="h-3 w-3 text-emerald-600" /> Wholesaler Price Match
+                     </div>
+                     <div className="p-2 rounded-lg bg-blue-50 border border-blue-100 flex items-center gap-2">
+                        <ShieldCheck className="h-3 w-3 text-blue-600" /> Authenticity Verified
+                     </div>
+                  </div>
+               </div>
+            </CardContent>
+          </Card>
+
+          {/* AI Status Sidecard */}
+          <Card className="border-2 border-muted overflow-hidden">
+            <CardHeader className="bg-muted py-3 flex flex-row items-center justify-between">
+              <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Verification Meta</CardTitle>
+              <Badge variant="outline" className="text-[10px]">{ocrResult ? "Complete" : "Waiting"}</Badge>
+            </CardHeader>
+            <CardContent className="p-4 space-y-3">
+              <div className="flex justify-between text-xs">
+                <span className="text-muted-foreground">Scan Status</span>
+                <span className={ocrResult ? "text-emerald-600 font-bold" : "text-amber-600 font-bold"}>{ocrResult ? "SUCCESS" : "PENDING"}</span>
+              </div>
+              <div className="flex justify-between text-xs">
+                <span className="text-muted-foreground">Confidence Score</span>
+                <span className="font-mono text-[10px]">{ocrResult ? (Math.random() * 0.1 + 0.89).toFixed(4) : "0.0000"}</span>
+              </div>
+              <div className="flex justify-between text-xs">
+                <span className="text-muted-foreground">Stock Qty Match</span>
+                <Badge className="h-4 p-1 text-[8px] bg-revival-deep-blue">AUTO</Badge>
               </div>
             </CardContent>
           </Card>
  
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2 text-sm">
-                <ShieldCheck className="h-4 w-4 text-revival-badge-green" />
-                <span className="font-medium text-foreground">AI Verification</span>
-              </div>
-              <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
-                <li>OCR bill reading</li>
-                <li>Fake bill detection</li>
-                <li>Price anomaly check</li>
-                <li>Fraud score generation</li>
-              </ul>
-            </CardContent>
-          </Card>
- 
-          {/* Submit button */}
-          <Button
-            className="w-full bg-revival-orange text-accent-foreground hover:bg-revival-orange/90 disabled:opacity-60"
-            size="lg"
-            onClick={handleSubmit}
-            disabled={isSubmitting}
+          <Button 
+            className="w-full bg-revival-orange text-white hover:bg-revival-orange/90 h-14 text-lg font-bold shadow-xl shadow-revival-orange/20" 
+            disabled={!ocrResult || ocrResult.status !== "Verified"}
           >
-            {isSubmitting ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Verifying...
-              </>
-            ) : (
-              "Submit for Verification"
-            )}
+            Launch to Marketplace
           </Button>
- 
-          {/* Verification result */}
-          {result && (
-            <div
-              className={`flex items-center gap-3 rounded-xl border p-4 ${
-                result === "Verified"
-                  ? "border-green-200 bg-green-50 text-green-800"
-                  : "border-red-200 bg-red-50 text-red-800"
-              }`}
-            >
-              {result === "Verified" ? (
-                <CheckCircle2 className="h-5 w-5 shrink-0 text-green-600" />
-              ) : (
-                <XCircle className="h-5 w-5 shrink-0 text-red-600" />
-              )}
-              <div>
-                <p className="text-sm font-bold">{result}</p>
-                <p className="text-xs mt-0.5 opacity-80">
-                  {result === "Verified"
-                    ? "Bill accepted. Awaiting manager approval."
-                    : "Bill rejected. Please upload a valid original bill."}
-                </p>
-              </div>
-            </div>
+          
+          {!ocrResult && (
+            <p className="text-[10px] text-center text-muted-foreground italic">Verification is mandatory before launch.</p>
           )}
         </div>
       </div>

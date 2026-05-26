@@ -1,23 +1,30 @@
-import { verifyBill } from "@/backend/billVerifier";
+// e:/Revival/app/api/verify-bill/route.ts
+import { verifyBillFromText } from "@/backend/billVerifier";
+import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
-
   try {
+    // Read JSON body from client
+    const body = await req.json();
+    const { extractedText } = body;
 
-    const data = await req.formData();
+    if (!extractedText) {
+      return NextResponse.json({ 
+        status: "Fake Bill", 
+        reason: "No text extracted from image" 
+      }, { status: 200 }); // We return 200 so the frontend can show the "Fake Bill" message
+    }
 
-    const file = data.get("bill") as File;
+    // Call logic from backend
+    const result = await verifyBillFromText(extractedText);
 
-    const result = await verifyBill(file);
-
-    return Response.json(result);
+    return NextResponse.json(result);
 
   } catch (error) {
-
-    console.log(error);
-
-    return Response.json({
-      status: "Error",
-    });
+    console.error("API Route Error:", error);
+    return NextResponse.json({ 
+      status: "Error", 
+      reason: "Internal server error" 
+    }, { status: 500 });
   }
 }
