@@ -1,30 +1,45 @@
 // e:/Revival/app/api/verify-bill/route.ts
-import { verifyBillFromText } from "@/backend/billVerifier";
+import { verifyBill } from "@/backend/billVerifier";
 import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
-  try {
-    // Read JSON body from client
-    const body = await req.json();
-    const { extractedText } = body;
+  // CRITICAL RUNTIME VERIFICATION
+  console.log("=========================================");
+  console.log("ROUTE FILE EXECUTED: /api/verify-bill");
+  console.log("TIMESTAMP:", new Date().toISOString());
+  console.log("=========================================");
 
-    if (!extractedText) {
-      return NextResponse.json({ 
-        status: "Fake Bill", 
-        reason: "No text extracted from image" 
-      }, { status: 200 }); // We return 200 so the frontend can show the "Fake Bill" message
+  try {
+    let body: any;
+    try {
+        body = await req.json();
+    } catch (e) {
+        return NextResponse.json({ success: false, error: "MALFORMED_JSON_REQUEST" }, { status: 400 });
     }
 
-    // Call logic from backend
-    const result = await verifyBillFromText(extractedText);
+    const { extractedText, imageBase64 } = body;
+    
+    // DETAILED RUNTIME AUDIT
+    console.log("API RECEIVED TEXT:", extractedText || "[EMPTY]");
+    console.log("TEXT LENGTH:", extractedText?.length || 0);
+    console.log("IMAGE PRESENT:", !!imageBase64);
 
-    return NextResponse.json(result);
+    if (!process.env.GOOGLE_API_KEY) {
+        console.error("VISION API KEY MISSING");
+        return NextResponse.json({ success: false, error: "VISION API KEY MISSING" }, { status: 401 });
+    }
+    
+    try {
+        const result = await verifyBill(extractedText || "", imageBase64);
+        console.log("EXECUTION SUCCESS");
+        return NextResponse.json(result);
+    } catch (error: any) {
+        console.error("EXECUTION ERROR:", error.message);
+        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    }
 
-  } catch (error) {
-    console.error("API Route Error:", error);
-    return NextResponse.json({ 
-      status: "Error", 
-      reason: "Internal server error" 
-    }, { status: 500 });
+  } catch (error: any) {
+    console.error("CRITICAL_FAULT:", error);
+    return NextResponse.json({ success: false, error: "INTERNAL_SERVER_ERROR" }, { status: 500 });
   }
 }
