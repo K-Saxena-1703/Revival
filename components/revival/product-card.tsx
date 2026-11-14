@@ -13,13 +13,13 @@ export function ProductCard({ product }: { product: Product }) {
     <Link href={`/products/${product.id}`} className="group block">
       <div className="overflow-hidden rounded-xl border border-border bg-card transition-all duration-200 hover:shadow-lg">
         {/* Image */}
-        <div className="relative aspect-square overflow-hidden bg-white">
+        <div className="relative aspect-square overflow-hidden bg-secondary">
           <Image
             src={product.image}
             alt={product.name}
             fill
             sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-            className="object-contain p-2 sm:p-3 transition-transform duration-300 group-hover:scale-105"
+            className="object-contain p-2 sm:p-3"
           />
 
           {/* Discount badge */}
