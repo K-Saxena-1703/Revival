@@ -38,7 +38,7 @@ export default function ProductDetailPage({
 
   if (!product) {
     return (
-      <div className="flex min-h-screen flex-col bg-background">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Header />
         <main className="flex flex-1 items-center justify-center">
           <div className="text-center">
@@ -59,7 +59,7 @@ export default function ProductDetailPage({
     .slice(0, 4)
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-4">
       <Header />
       <main className="flex-1">
         {/* Breadcrumb */}

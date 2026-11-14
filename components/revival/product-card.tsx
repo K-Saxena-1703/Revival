@@ -6,21 +6,21 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import type { Product } from "@/lib/data"
 import { formatPrice } from "@/lib/data"
+import Image from "next/image"
 
 export function ProductCard({ product }: { product: Product }) {
   return (
     <Link href={`/products/${product.id}`} className="group block">
       <div className="overflow-hidden rounded-xl border border-border bg-card transition-all duration-200 hover:shadow-lg">
         {/* Image */}
-        <div className="relative aspect-square overflow-hidden bg-secondary">
-          <div className="flex h-full items-center justify-center p-6 text-muted-foreground">
-            <div className="text-center">
-              <div className="mx-auto mb-2 flex h-16 w-16 items-center justify-center rounded-full bg-revival-deep-blue/10">
-                <ShieldCheck className="h-8 w-8 text-revival-deep-blue" />
-              </div>
-              <p className="text-xs">{product.category}</p>
-            </div>
-          </div>
+        <div className="relative aspect-square overflow-hidden bg-white">
+          <Image
+            src={product.image}
+            alt={product.name}
+            fill
+            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+            className="object-contain p-2 sm:p-3 transition-transform duration-300 group-hover:scale-105"
+          />
 
           {/* Discount badge */}
           <div className="absolute left-2 top-2">
@@ -55,8 +55,8 @@ export function ProductCard({ product }: { product: Product }) {
         </div>
 
         {/* Details */}
-        <div className="p-3">
-          <h3 className="line-clamp-2 text-sm font-medium leading-snug text-foreground group-hover:text-revival-deep-blue">
+        <div className="p-2 sm:p-3">
+          <h3 className="line-clamp-2 text-xs sm:text-sm font-medium leading-snug text-foreground group-hover:text-revival-deep-blue">
             {product.name}
           </h3>
 
@@ -71,15 +71,15 @@ export function ProductCard({ product }: { product: Product }) {
           </div>
 
           <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-lg font-bold text-foreground">
+            <span className="text-base sm:text-lg font-bold text-foreground">
               {formatPrice(product.sellingPrice)}
             </span>
-            <span className="text-sm text-muted-foreground line-through">
+            <span className="text-xs sm:text-sm text-muted-foreground line-through">
               {formatPrice(product.mrp)}
             </span>
           </div>
 
-          <p className="mt-1 text-xs text-muted-foreground">
+          <p className="mt-1 text-[10px] sm:text-xs text-muted-foreground">
             {product.city} &middot; {product.stock} left
           </p>
         </div>
