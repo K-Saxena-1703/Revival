@@ -26,6 +26,7 @@ import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { toast } from "sonner"
+import Image from "next/image"
 
 export default function ProductDetailPage({
   params,
@@ -38,7 +39,7 @@ export default function ProductDetailPage({
 
   if (!product) {
     return (
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="flex min-h-screen w-full flex-col">
         <Header />
         <main className="flex flex-1 items-center justify-center">
           <div className="text-center">
@@ -59,9 +60,9 @@ export default function ProductDetailPage({
     .slice(0, 4)
 
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="flex min-h-screen w-full flex-col">
       <Header />
-      <main className="flex-1">
+      <main className="w-full min-w-0 flex-1">
         {/* Breadcrumb */}
         <div className="mx-auto max-w-7xl px-4 py-3">
           <nav className="flex items-center gap-1 text-sm text-muted-foreground">
@@ -89,17 +90,14 @@ export default function ProductDetailPage({
             {/* Product Image */}
             <div className="space-y-4">
               <div className="relative aspect-square overflow-hidden rounded-xl border border-border bg-secondary">
-                <div className="flex h-full items-center justify-center">
-                  <div className="text-center">
-                    <div className="mx-auto mb-4 flex h-24 w-24 items-center justify-center rounded-full bg-revival-deep-blue/10">
-                      <ShieldCheck className="h-12 w-12 text-revival-deep-blue" />
-                    </div>
-                    <p className="text-lg font-medium text-muted-foreground">
-                      {product.category}
-                    </p>
-                    <p className="text-sm text-muted-foreground">Product Image</p>
-                  </div>
-                </div>
+                <Image
+                  src={product.image}
+                  alt={product.name}
+                  fill
+                  priority
+                  sizes="(max-width: 1024px) 100vw, 50vw"
+                  className="object-contain p-4"
+                />
 
                 {product.badge && (
                   <div className="absolute left-4 top-4">
