@@ -33,23 +33,6 @@ export default function HomePage() {
             ))}
           </div>
         </section>
-
-        {/* Stats */}
-        <section className="bg-revival-deep-blue py-12">
-          <div className="mx-auto grid max-w-7xl grid-cols-2 gap-6 px-4 md:grid-cols-4">
-            {[
-              { value: "50K+", label: "Products Listed" },
-              { value: "10K+", label: "Trusted Retailers" },
-              { value: "500+", label: "Cities Served" },
-              { value: "2L+", label: "Happy Customers" },
-            ].map((stat, i) => (
-              <div key={i} className="text-center">
-                <p className="text-3xl font-bold text-revival-orange">{stat.value}</p>
-                <p className="mt-1 text-sm text-primary-foreground/70">{stat.label}</p>
-              </div>
-            ))}
-          </div>
-        </section>
       </main>
 
       <Footer />

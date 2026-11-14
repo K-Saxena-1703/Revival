@@ -24,10 +24,7 @@ export function Footer() {
             </p>
             <div className="mt-4 flex flex-col gap-2 text-sm text-primary-foreground/70">
               <span className="flex items-center gap-2">
-                <MapPin className="h-4 w-4" /> Mumbai, Maharashtra, India
-              </span>
-              <span className="flex items-center gap-2">
-                <Phone className="h-4 w-4" /> +91 1800-REVIVAL
+                <MapPin className="h-4 w-4" /> Mathura, Uttar Pradesh, India
               </span>
               <span className="flex items-center gap-2">
                 <Mail className="h-4 w-4" /> support@revival.in
